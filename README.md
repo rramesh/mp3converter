@@ -1,36 +1,42 @@
 # mp3converter
 
-Simple shell script to convert audio files under a directory to MP3 at a specified bitrate (default 16k) and sampling rate (default 24kHz) using ffmpeg.
+Simple shell script to convert audio files under a directory to MP3 at specified bitrate (default 16k) and sampling rate (default 24kHz) using ffmpeg.
 
 ## Quick Install
 ```bash
 curl -s https://raw.githubusercontent.com/rramesh/mp3converter/main/installer.sh | bash
 ```
 This will:
-- Download the converter script
+- Download the converter script to ~/.mp3c
 - Make it executable
-- Add to PATH (detects bash/zsh automatically)
+- Add to PATH (detects shell automatically)
 - Show usage instructions
 
 ## Manual Installation
 
 ### Install and make executable:
-1. Copy `mp3converter.sh` to a directory you control, e.g. `~/bin/`.
-2. Make it executable:
-   chmod +x ~/bin/mp3converter.sh
+1. Create directory and copy script:
+```bash
+mkdir -p ~/.mp3c
+cp mp3converter.sh ~/.mp3c/
+chmod +x ~/.mp3c/mp3converter.sh
+```
 
-### Add to PATH (example for bash or macOS zsh):
-# For bash (Linux or macOS if using bash)
-1. Open `~/.bashrc` or `~/.bash_profile` and add:
-   export PATH="$HOME/bin:$PATH"
-2. Reload:
-   source ~/.bashrc   # or source ~/.bash_profile
-
-# For macOS users using zsh (default on newer macOS)
+### Add to PATH:
+# For macOS (using zsh - default):
 1. Open `~/.zshrc` and add:
-   export PATH="$HOME/bin:$PATH"
+   export PATH="$HOME/.mp3c:$PATH"
 2. Reload:
    source ~/.zshrc
+
+# For bash users (Linux or macOS):
+1. Open appropriate RC file:
+   - Linux: `~/.bashrc`
+   - macOS: `~/.bash_profile`
+2. Add:
+   export PATH="$HOME/.mp3c:$PATH"
+3. Reload:
+   source ~/.bashrc  # or ~/.bash_profile on macOS
 
 ## Requirements
 - ffmpeg must be installed and available on PATH.
