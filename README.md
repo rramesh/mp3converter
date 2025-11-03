@@ -1,13 +1,25 @@
 # mp3converter
 
-Simple shell script to convert audio files under a directory to MP3 at a specified bitrate (default 16k) and sampling rate (default 24kHz) using ffmpeg. The script converts all audio files recursively, preserves directory structure, copies non-audio files unchanged, and replaces the original top-level directory after successful conversion.
+Simple shell script to convert audio files under a directory to MP3 at a specified bitrate (default 16k) and sampling rate (default 24kHz) using ffmpeg.
 
-## Install and make executable:
+## Quick Install
+```bash
+curl -s https://raw.githubusercontent.com/rramesh/mp3converter/main/installer.sh | bash
+```
+This will:
+- Download the converter script
+- Make it executable
+- Add to PATH (detects bash/zsh automatically)
+- Show usage instructions
+
+## Manual Installation
+
+### Install and make executable:
 1. Copy `mp3converter.sh` to a directory you control, e.g. `~/bin/`.
 2. Make it executable:
    chmod +x ~/bin/mp3converter.sh
 
-## Add to PATH (example for bash or macOS zsh):
+### Add to PATH (example for bash or macOS zsh):
 # For bash (Linux or macOS if using bash)
 1. Open `~/.bashrc` or `~/.bash_profile` and add:
    export PATH="$HOME/bin:$PATH"
