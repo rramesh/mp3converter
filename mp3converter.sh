@@ -11,6 +11,7 @@ DRY_RUN=false
 PATH_ARG=""
 SAMPLING_RATE_RAW=""
 SAMPLING_RATE="24000"    # default 24 kHz in Hz
+REPLACE_ORIGINAL=false    # new: do not replace originals by default
 
 # Function to show help
 show_help() {
@@ -19,6 +20,7 @@ show_help() {
     echo "Options:"
     echo "  -b, --bitrate BITRATE      Set bitrate (default 16k)"
     echo "  -s, --sampling-rate RATE   Set sampling rate (e.g. 24k, 24000). Default 24kHz"
+    echo "  -r, --replace-original     Delete original files/directories and replace with converted output"
     echo "  -d, --dry-run              Show operations without executing"
     echo "  -h, --help                 Show this help"
 }
@@ -33,6 +35,10 @@ while [[ $# -gt 0 ]]; do
         -s|--sampling-rate)
             SAMPLING_RATE_RAW="$2"
             shift 2
+            ;;
+        -r|--replace-original|-ro|--replace-original)
+            REPLACE_ORIGINAL=true
+            shift
             ;;
         -d|--dry-run)
             DRY_RUN=true
@@ -162,17 +168,36 @@ process_dir() {
             if [[ "$extension" == "mp3" ]]; then
                 # For MP3 files: use suffix during conversion
                 local suffixed_name="${base_name}_${BITRATE}.mp3"
-                convert_audio "$orig_name" "$suffixed_name"
-                if [[ "$DRY_RUN" == false ]]; then
-                    rm -f "$orig_name"
-                    mv "$suffixed_name" "$orig_name"
+                if [[ "$DRY_RUN" == true ]]; then
+                    echo "[DRY-RUN] Would convert root MP3: $(basename "$orig_name") -> $(basename "$suffixed_name")"
+                    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+                        echo "[DRY-RUN] Would delete original: $(basename "$orig_name")"
+                        echo "[DRY-RUN] Would rename: $(basename "$suffixed_name") -> $(basename "$orig_name")"
+                    else
+                        echo "[DRY-RUN] Would keep original and leave converted: $(basename "$suffixed_name")"
+                    fi
+                else
+                    convert_audio "$orig_name" "$suffixed_name"
+                    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+                        rm -f "$orig_name"
+                        mv "$suffixed_name" "$orig_name"
+                    fi
                 fi
             else
-                # For non-MP3 audio: convert directly to .mp3
+                # For non-MP3 audio: convert directly to .mp3 (basename.mp3)
                 local new_name="${base_name}.mp3"
-                convert_audio "$orig_name" "$new_name"
-                if [[ "$DRY_RUN" == false ]]; then
-                    rm -f "$orig_name"
+                if [[ "$DRY_RUN" == true ]]; then
+                    echo "[DRY-RUN] Would convert root file: $(basename "$orig_name") -> $(basename "$new_name")"
+                    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+                        echo "[DRY-RUN] Would delete original: $(basename "$orig_name")"
+                    else
+                        echo "[DRY-RUN] Would keep original and create: $(basename "$new_name")"
+                    fi
+                else
+                    convert_audio "$orig_name" "$new_name"
+                    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+                        rm -f "$orig_name"
+                    fi
                 fi
             fi
         fi
@@ -198,6 +223,7 @@ process_dir() {
         else
             mkdir -p "$new_dir"
             printf "Processing subdir: %q\n" "$rel_dir"
+            printf "Created: %q\n" "$new_dir"
         fi
 
         # Store all files in array first
@@ -233,13 +259,22 @@ process_dir() {
             fi
         done
 
-        if [[ "$DRY_RUN" == true ]]; then
-            printf "[DRY-RUN] Would delete directory: %q\n" "$rel_dir"
-            printf "[DRY-RUN] Would rename: %q -> %q\n" "${rel_dir}_${BITRATE}" "$rel_dir"
+        # After processing files in this subdir: either replace original (delete+mv) or keep both
+        if [[ "$REPLACE_ORIGINAL" == true ]]; then
+            if [[ "$DRY_RUN" == true ]]; then
+                printf "[DRY-RUN] Would delete original directory: %q\n" "$rel_dir"
+                printf "[DRY-RUN] Would rename: %q -> %q\n" "${new_dir#$src_dir/}" "$rel_dir"
+            else
+                rm -rf "$dir"
+                mv "$new_dir" "$dir"
+                printf "Replaced original directory: %q\n" "$rel_dir"
+            fi
         else
-            rm -rf "$dir"
-            mv "$new_dir" "$dir"
-            printf "Completed processing: %q\n" "$rel_dir"
+            if [[ "$DRY_RUN" == true ]]; then
+                printf "[DRY-RUN] Would keep original directory: %q and leave converted at: %q\n" "$rel_dir" "$new_dir"
+            else
+                printf "Left original directory: %q (converted copy at %q)\n" "$rel_dir" "$new_dir"
+            fi
         fi
     done
 }
@@ -257,23 +292,48 @@ process_file() {
     local dir="$(dirname "$src")"
     local base="$(basename "$src")"
     local name="${base%.*}"
-    # suffix uses BITRATE as provided (e.g. 16k). Result: name_16k.mp3
-    local dst="${dir}/${name}_${BITRATE}.mp3"
+    local ext="${base##*.}"
+    # For single-file we create a suffixed mp3
+    local suffixed_dst="${dir}/${name}_${BITRATE}.mp3"
+    local base_mp3="${dir}/${name}.mp3"
     local orig_size=$(du -m "$src" 2>/dev/null | cut -f1)
     if [[ -z "$orig_size" ]]; then orig_size="0"; fi
 
     if [[ "$DRY_RUN" == true ]]; then
-        echo "[DRY-RUN] Would convert file: $src"
-        echo "[DRY-RUN] To: $dst"
-        echo "[DRY-RUN] ${dst} was originally ${orig_size}MB after conversion is <new_size>MB"
+        echo "[DRY-RUN] Would convert file: $src -> $(basename "$suffixed_dst")"
+        if [[ "$REPLACE_ORIGINAL" == true ]]; then
+            if [[ "$ext" == "mp3" ]]; then
+                echo "[DRY-RUN] Would delete original: $(basename "$src")"
+                echo "[DRY-RUN] Would rename: $(basename "$suffixed_dst") -> $(basename "$src")"
+            else
+                echo "[DRY-RUN] Would delete original: $(basename "$src")"
+                echo "[DRY-RUN] Would place converted file as: $(basename "$base_mp3")"
+            fi
+        else
+            echo "[DRY-RUN] Would keep original and create: $(basename "$suffixed_dst")"
+        fi
+        echo "[DRY-RUN] Original size: ${orig_size}MB"
+        return 0
+    fi
+
+    # Actual conversion
+    ffmpeg -y -i "$src" -ar "$SAMPLING_RATE" -b:a "$BITRATE" -ac 1 "$suffixed_dst" >/dev/null 2>&1
+    local new_size=$(du -m "$suffixed_dst" 2>/dev/null | cut -f1)
+    if [[ -z "$new_size" ]]; then new_size="0"; fi
+
+    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+        if [[ "$ext" == "mp3" ]]; then
+            rm -f "$src"
+            mv "$suffixed_dst" "$src"
+            echo "Converted and replaced: $src (was ${orig_size}MB -> ${new_size}MB)"
+        else
+            # keep standardized name without bitrate suffix for replacement
+            rm -f "$src"
+            mv "$suffixed_dst" "$base_mp3"
+            echo "Converted and replaced: $base_mp3 (was ${orig_size}MB -> ${new_size}MB)"
+        fi
     else
-        # perform conversion
-        mkdir -p "$dir"
-        ffmpeg -y -i "$src" -ar "$SAMPLING_RATE" -b:a "$BITRATE" -ac 1 "$dst" >/dev/null 2>&1
-        local new_size=$(du -m "$dst" 2>/dev/null | cut -f1)
-        if [[ -z "$new_size" ]]; then new_size="0"; fi
-        echo "Converted: $src -> $dst"
-        echo "${dst} was originally ${orig_size}MB after conversion is ${new_size}MB"
+        echo "Converted: $suffixed_dst (was ${orig_size}MB -> ${new_size}MB)"
     fi
 }
 
@@ -345,6 +405,7 @@ export -f is_audio convert_audio copy_file process_dir process_file
 export BITRATE
 export DRY_RUN
 export SAMPLING_RATE
+export REPLACE_ORIGINAL
 
 # Safety check - never process root or system directories
 if [[ "$PATH_ARG" == "/" || "$PATH_ARG" =~ ^/(bin|sbin|usr|etc|var|tmp) ]]; then

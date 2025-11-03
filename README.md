@@ -64,43 +64,52 @@ Install ffmpeg:
 ## Options:
   -b, --bitrate BITRATE         Set audio bitrate (e.g. 16k, 64k). Default: 16k
   -s, --sampling-rate RATE      Set sampling rate. Accepts formats like `24k`, `24khz`, or `24000`. Default: 24kHz (24000)
+  -r, --replace-original        Delete original files/directories and rename converted output to original names
   -d, --dry-run                Show operations without executing (no files/dirs created)
   -h, --help                   Show help
 
 Notes:
 - The script converts audio to MP3 with one audio channel (mono) by default; it uses ffmpeg parameters to set sampling rate (`-ar`) and bitrate (`-b:a`) and forces mono (`-ac 1`).
 - Default values: bitrate = 16k, sampling rate = 24000 Hz (24kHz), mono.
+- By default, original files and directories are preserved. Use -r to replace them with converted versions.
 
 ## Examples:
-- Convert directory `/tmp/ddv` to default (16k, 24kHz mono):
+- Convert directory `/tmp/ddv` to default settings (keeps original):
   mp3converter.sh /tmp/ddv
+  # Creates: /tmp/ddv_16k/ (original /tmp/ddv remains unchanged)
 
-- Convert using 64k bitrate and keep default sampling rate:
-  mp3converter.sh -b 64k /tmp/ddv
+- Convert and replace original directory:
+  mp3converter.sh -r /tmp/ddv
+  # Converts to /tmp/ddv_16k/, then deletes /tmp/ddv and renames /tmp/ddv_16k to /tmp/ddv
 
-- Convert using 32k bitrate and 48kHz sampling rate:
-  mp3converter.sh -b 32k -s 48k /tmp/ddv
+- Convert single file (keeps original):
+  mp3converter.sh ~/music/song.m4a
+  # Creates: ~/music/song_16k.mp3 (original .m4a remains unchanged)
 
-- Explicit sampling-rate in Hz:
-  mp3converter.sh -s 24000 /tmp/ddv
+- Convert and replace original file:
+  mp3converter.sh -r ~/music/song.mp3
+  # Creates temporary song_16k.mp3, then replaces original song.mp3
 
-- Dry-run (shows what would be done):
-  mp3converter.sh --dry-run -b 32k -s 24k /tmp/ddv
+- Convert using different bitrate (keeps original):
+  mp3converter.sh -b 64k ~/music/
+  # Creates: ~/music_64k/ with converted files
 
-- Convert a single audio file (creates <name>_<bitrate>.mp3 next to the source file):
-  mp3converter.sh /path/to/song.m4a
-  # Example with custom bitrate:
-  mp3converter.sh -b 32k /path/to/song.wav
+- Convert with custom settings and replace:
+  mp3converter.sh -b 32k -s 48k -r ~/music/
+  # Converts to ~/music_32k/ then replaces ~/music/
 
-  Note: Single-file conversion writes the converted MP3 beside the source file using the bitrate as a suffix.
-  For example, converting /home/me/track.wav with -b 32k produces:
-    /home/me/track_32k.mp3
+- Dry-run to preview operations:
+  mp3converter.sh --dry-run -b 32k -r ~/music/
 
 ## Behavior summary
-- A sibling directory named `<dirname>_<bitrate>` is created (e.g. `ddv_16k`) and the entire structure is replicated with converted `.mp3` files.
-- Non-audio files (including hidden files) are copied as-is.
-- After successful conversion the original top-level directory is deleted and the new one is renamed back to the original name.
-- Dry-run prints the same logs without performing filesystem changes or running ffmpeg.
+- By default, creates converted files/directories alongside originals:
+  - Directories: creates sibling directory with _<bitrate> suffix
+  - Single files: creates new file with _<bitrate> suffix
+  - Original files/directories are preserved
+- With -r flag:
+  - Directories: creates _<bitrate> directory, then replaces original
+  - Single files: creates suffixed file, then replaces original
+  - Original files/directories are removed
 
 ## Notes:
 - Script will create a sibling directory named `<dirname>_<bitrate>` (e.g. `ddv_16k`), replicate the directory structure, convert audio files to `.mp3`, copy non-audio files as-is, then delete the original directory and rename the new one back to the original name.
