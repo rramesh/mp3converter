@@ -87,6 +87,15 @@ Notes:
 - Dry-run (shows what would be done):
   mp3converter.sh --dry-run -b 32k -s 24k /tmp/ddv
 
+- Convert a single audio file (creates <name>_<bitrate>.mp3 next to the source file):
+  mp3converter.sh /path/to/song.m4a
+  # Example with custom bitrate:
+  mp3converter.sh -b 32k /path/to/song.wav
+
+  Note: Single-file conversion writes the converted MP3 beside the source file using the bitrate as a suffix.
+  For example, converting /home/me/track.wav with -b 32k produces:
+    /home/me/track_32k.mp3
+
 ## Behavior summary
 - A sibling directory named `<dirname>_<bitrate>` is created (e.g. `ddv_16k`) and the entire structure is replicated with converted `.mp3` files.
 - Non-audio files (including hidden files) are copied as-is.

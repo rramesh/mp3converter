@@ -60,13 +60,19 @@ if [[ -z "$PATH_ARG" ]]; then
     exit 1
 fi
 
-# Validate path
-if [[ ! -d "$PATH_ARG" ]]; then
-    echo "Error: $PATH_ARG is not a directory"
+# Validate path: accept file or directory (must exist)
+if [[ ! -e "$PATH_ARG" ]]; then
+    echo "Error: $PATH_ARG does not exist"
     exit 1
 fi
 
-# Check write permission
+# Remember whether input is a file (single-file mode) or a directory (recursive)
+IS_FILE=false
+if [[ -f "$PATH_ARG" ]]; then
+    IS_FILE=true
+fi
+
+# Check write permission on parent directory (needed for creating converted files)
 PARENT=$(dirname "$PATH_ARG")
 if ! touch "$PARENT/.test_write" 2>/dev/null; then
     echo "Error: No write permission in $PARENT"
@@ -238,6 +244,39 @@ process_dir() {
     done
 }
 
+# Function to process a single file
+process_file() {
+    local src="$1"
+    # ensure absolute path
+    src=$(realpath "$src")
+    if ! is_audio "$src"; then
+        echo "Skipping non-audio file: $src"
+        return 0
+    fi
+
+    local dir="$(dirname "$src")"
+    local base="$(basename "$src")"
+    local name="${base%.*}"
+    # suffix uses BITRATE as provided (e.g. 16k). Result: name_16k.mp3
+    local dst="${dir}/${name}_${BITRATE}.mp3"
+    local orig_size=$(du -m "$src" 2>/dev/null | cut -f1)
+    if [[ -z "$orig_size" ]]; then orig_size="0"; fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[DRY-RUN] Would convert file: $src"
+        echo "[DRY-RUN] To: $dst"
+        echo "[DRY-RUN] ${dst} was originally ${orig_size}MB after conversion is <new_size>MB"
+    else
+        # perform conversion
+        mkdir -p "$dir"
+        ffmpeg -y -i "$src" -ar "$SAMPLING_RATE" -b:a "$BITRATE" -ac 1 "$dst" >/dev/null 2>&1
+        local new_size=$(du -m "$dst" 2>/dev/null | cut -f1)
+        if [[ -z "$new_size" ]]; then new_size="0"; fi
+        echo "Converted: $src -> $dst"
+        echo "${dst} was originally ${orig_size}MB after conversion is ${new_size}MB"
+    fi
+}
+
 # Normalize sampling rate input into integer Hz (supports: 24000, 24k, 24khz)
 normalize_sampling_rate() {
     local v="$1"
@@ -302,7 +341,7 @@ copy_file() {
 }
 
 # Export functions and key variables so they are available to subprocesses (like bash -c)
-export -f is_audio convert_audio copy_file process_dir
+export -f is_audio convert_audio copy_file process_dir process_file
 export BITRATE
 export DRY_RUN
 export SAMPLING_RATE
@@ -322,12 +361,29 @@ fi
 # Main logic
 if [[ "$DRY_RUN" == true ]]; then
     echo "Dry run: converting to ${BITRATE} (mono) at ${SAMPLING_RATE}Hz"
-    echo "Dry run: Would process directory $PATH_ARG"
+    echo "Dry run: Would process path $PATH_ARG"
 else
     echo "Converting to ${BITRATE} (mono) at ${SAMPLING_RATE}Hz"
-    echo "Processing directory $PATH_ARG"
+    echo "Processing path $PATH_ARG"
 fi
 
+# If PATH_ARG is a file handle single-file conversion
+if [[ -f "$PATH_ARG" ]]; then
+    if [[ "$CAFFEINATE" == true ]]; then
+        caffeinate -i bash -c "$(declare -f); process_file '$PATH_ARG'"
+    else
+        process_file "$PATH_ARG"
+    fi
+    # finished single-file mode
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "Dry run: Completed single file conversion"
+    else
+        echo "Single file conversion completed"
+    fi
+    exit 0
+fi
+
+# Otherwise assume directory mode (existing behavior)
 if [[ "$CAFFEINATE" == true ]]; then
     caffeinate -i bash -c "$(declare -f); process_dir '$PATH_ARG' true"
 else
