@@ -135,50 +135,105 @@ is_audio() {
 # Function to process directory recursively
 process_dir() {
     local src_dir="$1"
-    local dst_dir="$2"
+    local is_root="$2"
 
-    # Resolve absolute source directory (must exist)
-    src_dir=$(cd "$src_dir" && pwd)
+    # Get absolute source path once
+    src_dir=$(realpath "$src_dir")
 
-    # Use the dst_dir parameter as provided.
-    # If it's not absolute, make it absolute relative to its parent if possible.
-    if [[ "$dst_dir" == /* ]]; then
-        dst_dir="$dst_dir"
-    else
-        # try to compute absolute destination without creating it
-        dst_dir="$(cd "$(dirname "$dst_dir")" 2>/dev/null && pwd)/$(basename "$dst_dir")"
-        # if the above failed, fallback to expanding relative to current working dir
-        if [[ -z "$dst_dir" ]]; then
-            dst_dir="$(pwd)/$dst_dir"
-        fi
-    fi
-
-    # Collect files (relative paths) from source dir
+    # Process root directory files first
     local files=()
-    while IFS= read -r -d '' f; do
-        files+=("$f")
-    done < <(cd "$src_dir" && find . -type f -print0)
+    while IFS= read -r -d '' file; do
+        files+=("$file")
+    done < <(find "$src_dir" -maxdepth 1 -type f -print0)
 
-    # Process each file preserving directory structure
-    for rel in "${files[@]}"; do
-        # strip leading ./ if present
-        rel="${rel#./}"
+    # Process root files
+    for file in "${files[@]}"; do
+        if is_audio "$file"; then
+            local orig_name="$file"
+            local base_name="${file%.*}"
+            local extension="${file##*.}"
+            
+            if [[ "$extension" == "mp3" ]]; then
+                # For MP3 files: use suffix during conversion
+                local suffixed_name="${base_name}_${BITRATE}.mp3"
+                convert_audio "$orig_name" "$suffixed_name"
+                if [[ "$DRY_RUN" == false ]]; then
+                    rm -f "$orig_name"
+                    mv "$suffixed_name" "$orig_name"
+                fi
+            else
+                # For non-MP3 audio: convert directly to .mp3
+                local new_name="${base_name}.mp3"
+                convert_audio "$orig_name" "$new_name"
+                if [[ "$DRY_RUN" == false ]]; then
+                    rm -f "$orig_name"
+                fi
+            fi
+        fi
+    done
 
-        local src_file="$src_dir/$rel"
-        local dst_file="$dst_dir/$rel"
-        local dst_dir_path
-        dst_dir_path="$(dirname "$dst_file")"
+    # Process subdirectories
+    local subdirs=()
+    while IFS= read -r -d '' dir; do
+        if [[ "$dir" != "$src_dir" ]]; then
+            subdirs+=("$dir")
+        fi
+    done < <(find "$src_dir" -mindepth 1 -type d -print0)
+
+    # Process each subdirectory
+    for dir in "${subdirs[@]}"; do
+        # Create paths using the full source directory path
+        local rel_dir="${dir#$src_dir/}"
+        local new_dir="${dir}_${BITRATE}"
+        
+        if [[ "$DRY_RUN" == true ]]; then
+            printf "[DRY-RUN] Would process subdir: %q\n" "$rel_dir"
+            printf "[DRY-RUN] Would create directory: %q\n" "$new_dir"
+        else
+            mkdir -p "$new_dir"
+            printf "Processing subdir: %q\n" "$rel_dir"
+        fi
+
+        # Store all files in array first
+        local subfiles=()
+        while IFS= read -r -d '' file; do
+            subfiles+=("$file")
+        done < <(find "$dir" -type f -print0)
+
+        # Process each file
+        for file in "${subfiles[@]}"; do
+            # Get relative path maintaining directory structure
+            local rel_path="${file#$dir/}"
+            local dst_file="$new_dir/$rel_path"
+
+            if [[ "$DRY_RUN" == true ]]; then
+                if is_audio "$file"; then
+                    local orig_size=$(du -m "$file" 2>/dev/null | cut -f1)
+                    if [[ -z "$orig_size" ]]; then orig_size="0"; fi
+                    printf "[DRY-RUN] Would convert: %q\n" "$rel_path"
+                    printf "[DRY-RUN] To: %q\n" "${dst_file%.*}.mp3"
+                    echo "[DRY-RUN] Original size: ${orig_size}MB"
+                else
+                    printf "[DRY-RUN] Would copy: %q\n" "$rel_path"
+                fi
+            else
+                mkdir -p "$(dirname "$dst_file")"
+                if is_audio "$file"; then
+                    convert_audio "$file" "$dst_file"
+                else
+                    cp -p "$file" "$dst_file"
+                    printf "Copied: %q\n" "$rel_path"
+                fi
+            fi
+        done
 
         if [[ "$DRY_RUN" == true ]]; then
-            echo "[DRY-RUN] Would create directory: $dst_dir_path"
+            printf "[DRY-RUN] Would delete directory: %q\n" "$rel_dir"
+            printf "[DRY-RUN] Would rename: %q -> %q\n" "${rel_dir}_${BITRATE}" "$rel_dir"
         else
-            mkdir -p "$dst_dir_path"
-        fi
-
-        if is_audio "$src_file"; then
-            convert_audio "$src_file" "$dst_file"
-        else
-            copy_file "$src_file" "$dst_file"
+            rm -rf "$dir"
+            mv "$new_dir" "$dir"
+            printf "Completed processing: %q\n" "$rel_dir"
         fi
     done
 }
@@ -265,43 +320,23 @@ if [[ ! "$NEW_DIR_PATH" =~ ^/ ]]; then
 fi
 
 # Main logic
-# Log bitrate and sampling rate info before processing
 if [[ "$DRY_RUN" == true ]]; then
     echo "Dry run: converting to ${BITRATE} (mono) at ${SAMPLING_RATE}Hz"
+    echo "Dry run: Would process directory $PATH_ARG"
 else
     echo "Converting to ${BITRATE} (mono) at ${SAMPLING_RATE}Hz"
-fi
-
-if [[ "$DRY_RUN" == true ]]; then
-    echo "Dry run: Would create $NEW_DIR_PATH"
-else
-    mkdir -p "$NEW_DIR_PATH"
-    echo "Created $NEW_DIR_PATH"
+    echo "Processing directory $PATH_ARG"
 fi
 
 if [[ "$CAFFEINATE" == true ]]; then
-    # Use exported functions/vars so bash -c can call process_dir
-    # Quote paths to handle spaces correctly
-    caffeinate -i bash -c "$(declare -f); process_dir '$PATH_ARG' '$NEW_DIR_PATH'"
+    caffeinate -i bash -c "$(declare -f); process_dir '$PATH_ARG' true"
 else
-    process_dir "$PATH_ARG" "$NEW_DIR_PATH"
+    process_dir "$PATH_ARG" true
 fi
 
-# Verify new directory exists and has files before deletion
+# No need for final directory rename since we process root in place
 if [[ "$DRY_RUN" == true ]]; then
-    echo "Dry run: Would delete $PATH_ARG"
-    echo "Dry run: Would rename $NEW_DIR_PATH to $PATH_ARG"
+    echo "Dry run: Completed"
 else
-    if [[ ! -d "$NEW_DIR_PATH" ]]; then
-        echo "Error: Conversion failed - new directory not created"
-        exit 1
-    fi
-    if ! find "$NEW_DIR_PATH" -type f | grep -q .; then
-        echo "Error: Conversion failed - no files in new directory"
-        exit 1
-    fi
-    rm -rf "$PATH_ARG"
-    echo "Deleted $PATH_ARG"
-    mv "$NEW_DIR_PATH" "$PATH_ARG"
-    echo "Renamed $NEW_DIR_PATH to $PATH_ARG"
+    echo "Conversion completed"
 fi
