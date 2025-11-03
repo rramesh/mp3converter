@@ -57,14 +57,9 @@ else
     echo "$INSTALL_DIR already in PATH"
 fi
 
-# Source RC file
-echo "Reloading shell configuration..."
-source "$RC_FILE" 2>/dev/null || . "$RC_FILE"
-
 echo -e "\nInstallation complete!"
-echo "Running help to show usage..."
-echo "----------------------------"
-"$INSTALL_DIR/$SCRIPT_NAME" --help
-
-echo -e "\nYou may need to restart your terminal or run:"
-echo "source $RC_FILE"
+echo -e "\nTo complete installation, either:"
+echo "1. Open a new terminal window, or"
+echo "2. Run this command in your current terminal:"
+echo "   source $RC_FILE"
+echo -e "\nOnce done, you can run 'mp3converter.sh --help' to see usage instructions."
