@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Constants
-GITHUB_URL="https://raw.githubusercontent.com/rramesh/mp3converter/main/mp3converter.sh"
+GITHUB_URL="https://raw.githubusercontent.com/rramesh/mp3converter/main/mp3converter"
 INSTALL_DIR="$HOME/.mp3c"
-SCRIPT_NAME="mp3converter.sh"
+SCRIPT_NAME="mp3converter"
 
 # Create install directory if it doesn't exist
 mkdir -p "$INSTALL_DIR"
@@ -62,4 +62,4 @@ echo -e "\nTo complete installation, either:"
 echo "1. Open a new terminal window, or"
 echo "2. Run this command in your current terminal:"
 echo "   source $RC_FILE"
-echo -e "\nOnce done, you can run 'mp3converter.sh --help' to see usage instructions."
+echo -e "\nOnce done, you can run 'mp3converter --help' to see usage instructions."

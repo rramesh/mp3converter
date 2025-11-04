@@ -18,8 +18,8 @@ This will:
 1. Create directory and copy script:
 ```bash
 mkdir -p ~/.mp3c
-cp mp3converter.sh ~/.mp3c/
-chmod +x ~/.mp3c/mp3converter.sh
+cp mp3converter ~/.mp3c/
+chmod +x ~/.mp3c/mp3converter
 ```
 
 ### Add to PATH:
@@ -59,7 +59,7 @@ Install ffmpeg:
   If packages are not available in default repos, enable the appropriate third-party repo (EPEL/RPMFusion) for your distribution.
 
 ## Usage:
-  mp3converter.sh [OPTIONS] PATH
+  mp3converter [OPTIONS] PATH
 
 ## Options:
   -b, --bitrate BITRATE         Set audio bitrate (e.g. 16k, 64k). Default: 16k
@@ -75,31 +75,31 @@ Notes:
 
 ## Examples:
 - Convert directory `/tmp/ddv` to default settings (keeps original):
-  mp3converter.sh /tmp/ddv
+  mp3converter /tmp/ddv
   # Creates: /tmp/ddv_16k/ (original /tmp/ddv remains unchanged)
 
 - Convert and replace original directory:
-  mp3converter.sh -r /tmp/ddv
+  mp3converter -r /tmp/ddv
   # Converts to /tmp/ddv_16k/, then deletes /tmp/ddv and renames /tmp/ddv_16k to /tmp/ddv
 
 - Convert single file (keeps original):
-  mp3converter.sh ~/music/song.m4a
+  mp3converter ~/music/song.m4a
   # Creates: ~/music/song_16k.mp3 (original .m4a remains unchanged)
 
 - Convert and replace original file:
-  mp3converter.sh -r ~/music/song.mp3
+  mp3converter -r ~/music/song.mp3
   # Creates temporary song_16k.mp3, then replaces original song.mp3
 
 - Convert using different bitrate (keeps original):
-  mp3converter.sh -b 64k ~/music/
+  mp3converter -b 64k ~/music/
   # Creates: ~/music_64k/ with converted files
 
 - Convert with custom settings and replace:
-  mp3converter.sh -b 32k -s 48k -r ~/music/
+  mp3converter -b 32k -s 48k -r ~/music/
   # Converts to ~/music_32k/ then replaces ~/music/
 
 - Dry-run to preview operations:
-  mp3converter.sh --dry-run -b 32k -r ~/music/
+  mp3converter --dry-run -b 32k -r ~/music/
 
 ## Behavior summary
 - By default, creates converted files/directories alongside originals:
