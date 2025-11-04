@@ -63,9 +63,13 @@ Install ffmpeg:
 
 ## Options:
   -b, --bitrate BITRATE         Set audio bitrate (e.g. 16k, 64k). Default: 16k
+
   -s, --sampling-rate RATE      Set sampling rate. Accepts formats like `24k`, `24khz`, or `24000`. Default: 24kHz (24000)
+  
   -r, --replace-original        Delete original files/directories and rename converted output to original names
+  
   -d, --dry-run                Show operations without executing (no files/dirs created)
+  
   -h, --help                   Show help
 
 Notes:
@@ -74,32 +78,46 @@ Notes:
 - By default, original files and directories are preserved. Use -r to replace them with converted versions.
 
 ## Examples:
-- Convert directory `/tmp/ddv` to default settings (keeps original):
+- #### Convert directory `/tmp/ddv` to default settings (keeps original):
+  ```
   mp3converter /tmp/ddv
-  # Creates: /tmp/ddv_16k/ (original /tmp/ddv remains unchanged)
+  ```
+  Creates: `/tmp/ddv_16k/` (original `/tmp/ddv` remains unchanged)  
 
-- Convert and replace original directory:
+- #### Convert and replace original directory:
+  ```
   mp3converter -r /tmp/ddv
-  # Converts to /tmp/ddv_16k/, then deletes /tmp/ddv and renames /tmp/ddv_16k to /tmp/ddv
+  ```
+  Converts to `/tmp/ddv_16k/`, then deletes `/tmp/ddv` and renames `/tmp/ddv_16k` to `/tmp/ddv`
 
-- Convert single file (keeps original):
+- #### Convert single file (keeps original):
+  ```
   mp3converter ~/music/song.m4a
-  # Creates: ~/music/song_16k.mp3 (original .m4a remains unchanged)
+  ```
+  Creates: `~/music/song_16k.mp3` (original `.m4a` remains unchanged)
 
-- Convert and replace original file:
+- #### Convert and replace original file:
+  ```
   mp3converter -r ~/music/song.mp3
-  # Creates temporary song_16k.mp3, then replaces original song.mp3
+  ```
+  Creates temporary `song_16k.mp3`, then replaces original `song.mp3`
 
-- Convert using different bitrate (keeps original):
+- #### Convert using different bitrate (keeps original):
+  ```
   mp3converter -b 64k ~/music/
-  # Creates: ~/music_64k/ with converted files
+  ```
+  Creates: `~/music_64k/` with converted files
 
-- Convert with custom settings and replace:
+- #### Convert with custom settings and replace:
+  ```
   mp3converter -b 32k -s 48k -r ~/music/
-  # Converts to ~/music_32k/ then replaces ~/music/
+  ```
+  Converts to `~/music_32k/` then replaces `~/music/`
 
-- Dry-run to preview operations:
+- #### Dry-run to preview operations:
+  ```
   mp3converter --dry-run -b 32k -r ~/music/
+  ```
 
 ## Behavior summary
 - By default, creates converted files/directories alongside originals:
